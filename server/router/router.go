@@ -1,7 +1,7 @@
 package router
 
 import (
-	"Todo-app/middlewares"
+	"github.com/Hyperion147/Todo-app/middlewares"
 
 	"github.com/gorilla/mux"
 )
