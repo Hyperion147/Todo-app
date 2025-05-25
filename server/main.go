@@ -1,11 +1,10 @@
 package main
 
 import (
+	"Todo-app/router"
 	"fmt"
 	"log"
 	"net/http"
-
-	"Todo-app/server/router"
 )
 
 func main() {
