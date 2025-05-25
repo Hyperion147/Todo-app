@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Hyperion147/Todo-app/tree/main/server/router"
+	"Todo-app/server/router"
 )
 
 func main() {
