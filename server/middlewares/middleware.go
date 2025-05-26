@@ -2,11 +2,13 @@ package middlewares
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Hyperion147/Todo-app/models"
 	"github.com/gorilla/mux"
@@ -18,6 +20,7 @@ import (
 )
 
 var collection *mongo.Collection
+var client *mongo.Client 
 
 func init() {
 	loadEnv()
@@ -27,7 +30,7 @@ func init() {
 func loadEnv() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatal("Error loading .env file.")
+		log.Fatal("Error loading .env file: ", err)
 	}
 }
 
@@ -36,23 +39,44 @@ func createDBInstance() {
 	dbName := os.Getenv("DB_NAME")
 	collName := os.Getenv("DB_COLLECTION_NAME")
 
-	clientOptions := options.Client().ApplyURI(connectionString)
-
-	client, err := mongo.Connect(context.TODO(), clientOptions)
-
-	if err != nil {
-		log.Fatal(err)
+	if connectionString == "" || dbName == "" || collName == "" {
+		log.Fatal("Missing required environment variables (DB_URI, DB_NAME, DB_COLLECTION_NAME)")
 	}
 
-	err = client.Ping(context.TODO(), nil)
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	clientOptions := options.Client().ApplyURI(connectionString).SetTLSConfig(&tls.Config{
+		InsecureSkipVerify: false, 
+	})
+
+	var err error
+	client, err = mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to connect to MongoDB: ", err)
+	}
+
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal("Failed to ping MongoDB: ", err)
 	}
 
 	fmt.Println("Connected to MongoDB")
 
 	collection = client.Database(dbName).Collection(collName)
 	fmt.Println("Collection instance created")
+}
+
+
+func CloseDBConnection() {
+	if client != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := client.Disconnect(ctx); err != nil {
+			log.Println("Failed to disconnect from MongoDB: ", err)
+		}
+	}
 }
 
 func GetAllTasks(w http.ResponseWriter, r *http.Request) {
