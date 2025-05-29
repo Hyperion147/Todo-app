@@ -47,14 +47,6 @@ const TodoList = ({ todos = [], onComplete, onUndo, onDelete, onDeleteAll }) => 
     })
   }
 
-  useGSAP(() => {
-    gsap.from(".todo-item", {
-      x: 50,
-      opacity: 0,
-      duration: 0.6
-    })
-  }, { scope: listRef })
-
   const savedTodos = Array.isArray(todos) ? todos : []
   const [newItem, setNewItem] = useState(new Set())
 
@@ -93,7 +85,7 @@ const TodoList = ({ todos = [], onComplete, onUndo, onDelete, onDeleteAll }) => 
             <div className="flex justify-center">
               <button
                 onClick={handleDeleteAll}
-                className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-red-400 transition-colors duration-200 font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 mb-3"
+                className="px-6 py-2 bg-primary text-text rounded-lg hover:bg-warning transition-colors duration-200 font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-warning focus:ring-offset-1 mb-3 cursor-pointer"
               >
                 Delete All Tasks
               </button>
