@@ -26,12 +26,13 @@
   --color-border-default: var(--color-border);
 }
 
-/* 
-  Optional: Create shortcut
-
 body{
     background-color: rgb(244, 254, 255);
     overflow: hidden;
+}
+
+::selection{
+  @apply bg-text text-primary
 }
 
 .scrollbar {

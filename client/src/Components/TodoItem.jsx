@@ -50,7 +50,7 @@ const TodoItem = forwardRef(({todo, onUndo, onComplete, onDelete, isNew }, ref) 
   }
 
   return (
-    <div ref={itemRef} className='flex items-center justify-center w-full py-1'>
+    <div ref={itemRef} className='flex items-center justify-center w-full py-1 mx-2'>
       <div className='flex items-center justify-between w-full max-w-md bg-surface rounded-lg shadow px-6 py-3 transition-all duration-300 hover:shadow-md hover:shadow-border'>
         <div className='flex items-center space-x-4 flex-grow'>
           <input 

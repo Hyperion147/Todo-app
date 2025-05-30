@@ -30,7 +30,7 @@ const TodoList = ({ todos = [], onComplete, onUndo, onDelete, onDeleteAll }) => 
         </div>
       </div>
     ), {
-      duration: Infinity, position: "bottom-right"
+      duration: 4000, position: "bottom-right"
     })
 
   }
@@ -60,9 +60,9 @@ const TodoList = ({ todos = [], onComplete, onUndo, onDelete, onDeleteAll }) => 
   }, [todos])
 
   return (
-    <div className="space-y-4 mx-auto mt-4">
+    <div className="space-y-4 mx-auto mt-4 z-20">
       {savedTodos.length === 0 ? (
-        <p className="text-center text-gray-500 py-8 text-lg">
+        <p className="text-center text-gray-500 py-8 text-lg px-5 md:px-0">
           No todos found. Add one to get started!
         </p>
       ) : (
@@ -85,7 +85,7 @@ const TodoList = ({ todos = [], onComplete, onUndo, onDelete, onDeleteAll }) => 
             <div className="flex justify-center">
               <button
                 onClick={handleDeleteAll}
-                className="px-6 py-2 bg-primary text-text rounded-lg hover:bg-warning transition-colors duration-200 font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-warning focus:ring-offset-1 mb-3 cursor-pointer"
+                className="px-6 py-2 bg-primary text-text rounded-lg hover:bg-warning transition-colors duration-200 font-medium shadow-md hover:shadow-lg transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-warning focus:ring-offset-1 mb-3 cursor-pointer z-10"
               >
                 Delete All Tasks
               </button>

@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import Navbar from "./Components/sections/Navbar";
+import { cn } from "./Components/ui/utils";
 import './App.css'
 
 gsap.registerPlugin(useGSAP);
@@ -23,13 +24,16 @@ function App() {
   const [todos, setTodos] = useState([])
 
   useGSAP(() => {
-     gsap.from(".todo-form", {
-    y: 20,
-    scale: 0.95,
-    autoAlpha: 0,
-    duration: 1,
-    ease: "elastic.out(1, 0.5)"
-  }, "+=0.2");
+    const ctx = gsap.context(() => {
+      gsap.from(".todo-form", {
+        y: 20,
+        scale: 0.95,
+        autoAlpha: 0,
+        duration: 1,
+        ease: "elastic.out(1, 0.5)"
+      });
+    });
+    return () => ctx.revert();
   })
 
   const fetchTodos = useCallback(async () => {
@@ -51,11 +55,11 @@ function App() {
     try {
       const newTodo = { task, status: false }
       await api.post("/task", newTodo)
-      toast.success("Task added successfully!", { id: toastId });
+      toast.success("Task added successfully!", { id: toastId, duration: 1000 });
       fetchTodos()
     } catch (error) {
       console.error("Error adding Task:", error)
-      toast.error("Failed to add task", { id: toastId })
+      toast.error("Failed to add task", { id: toastId, duration: 2000 })
     }
   }
 
@@ -110,6 +114,7 @@ function App() {
       setTodos([])
       toast.error('All tasks deleted!', {
         id: toastId,
+        duration: 2000,
         style: {
           background: '#1f2937',
           color: '#fff',
@@ -118,19 +123,37 @@ function App() {
       })
     } catch (error) {
       console.error("Error deleting all Tasks:", error)
-      toast.error("Failed to delete all tasks", { id: toastId })
-    }
+      toast.error("Failed to delete all tasks", { id: toastId, duration: 2000 })
+    } finally { setTimeout(() => toast.dismiss(toastId), 2000); }
   }
 
+  useEffect(() => {
+    return () => {
+      toast.dismiss();
+    };
+  }, []);
+
   return (
-    <div className='min-h-screen bg-background text-text overflow-hidden'>
+    <div className='min-h-screen bg-background text-text overflow-hidden relative z-10'>
+      <div
+        class="fixed inset-0 bgImg bg-cover bg-center opacity-70 -z-10"
+        aria-hidden="true"
+      ></div>
+      <div
+        className={cn(
+          "absolute inset-0 opacity-30 -z-10",
+          "[background-size:50px_50px]",
+          "[background-image:linear-gradient(to_right,#e4e4e7_1px,transparent_1px),linear-gradient(to_bottom,#e4e4e7_1px,transparent_1px)]",
+          "dark:[background-image:linear-gradient(to_right,#262626_1px,transparent_1px),linear-gradient(to_bottom,#262626_1px,transparent_1px)]",
+        )}
+      />
       <Navbar />
 
-      <main className='mx-auto px-4 pt-2 max-w-4xl w-full todo-form'>
+      <main className='mx-auto px-4 pt-2 max-w-4xl w-full todo-form z-10'>
         <Toaster
           position="bottom-right"
           toastOptions={{
-            duration: 3000,
+            duration: 1000,
             style: {
               background: '#1f2937',
               color: '#fff',
@@ -153,16 +176,17 @@ function App() {
           }}
         />
 
-        <div className='flex flex-col items-center '>
-          <TodoForm onAdd={addTodo} className="w-full max-w-[650px]" />
+        <div className='flex flex-col items-center'>
+          <TodoForm onAdd={addTodo} className="w-full max-w-[650px] opacity-100" />
 
-          <div className="border-primary border-2 rounded-lg overflow-hidden min-h-135 max-h-135 overflow-y-auto scrollbar w-full max-w-[650px] mt-2">
+          <div className="relative border-primary border-2 rounded-lg overflow-hidden overflow-y-auto scrollbar min-h-[78vh] md:min-h-140 max-h-135 w-full max-w-[650px] mt-2 z-10">
             <TodoList
               todos={todos}
               onComplete={completeTodo}
               onUndo={undoTodo}
               onDelete={deleteTask}
               onDeleteAll={deleteAllTasks}
+              className="relative opacity-100"
             />
           </div>
         </div>

@@ -12,7 +12,7 @@ const TodoForm = ({ onAdd }) => {
     }
 
     return (
-        <form onSubmit={handleSubmit} className="w-full">
+        <form onSubmit={handleSubmit} className="w-80 md:w-full">
             <div className="flex justify-center mb-2">
                 <div className="relative w-full max-w-md">
                     <input 
