@@ -49,7 +49,7 @@ const Navbar = () => {
     return (
         <nav ref={navbarRef} className='bg-primary border border-gray-700 shadow-md flex justify-center bgImg'>
             <div className='container mx-auto px-4 sm:px-6 py-3 sm:py-5 flex justify-around items-center gap-2 sm:gap-0 z-10'>
-                <h1 className="text-2xl sm:text-3xl font-bold text-text tech cursor-default">TODO</h1>
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-l from-slate-400 to-slate-200 bg-clip-text text-transparent tech cursor-default">TODO</h1>
                 <p className='text-text font-medium text-sm sm:text-base hidden sm:block'>Go + React</p>
                 <nav>
                     <ul className='flex items-center gap-3 sm:gap-6'>

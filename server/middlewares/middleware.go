@@ -8,9 +8,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Hyperion147/Todo-app/models"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,6 +24,11 @@ import (
 var collection *mongo.Collection
 var client *mongo.Client 
 
+type contextKey string
+const(
+	userIDKey contextKey = "userID"
+)
+
 func init() {
 	loadEnv()
 	createDBInstance()
@@ -32,6 +39,43 @@ func loadEnv() {
 	if err != nil {
 		log.Fatal("Error loading .env file: ", err)
 	}
+}
+
+func AuthMiddleware(next http.Handler) http.Handler{
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
+		tokenString := r.Header.Get("Authorization")
+		if tokenString == "" {
+			cookie, err := r.Cookie("token")
+			if err != nil{
+				http.Error(w, "You are not logged in", http.StatusUnauthorized)
+				return
+			}
+			tokenString = cookie.Value
+		} else {
+			tokenString = strings.Split(tokenString, " ")[1]
+		}
+
+		if tokenString == "" {
+			http.Error(w, "You are not logged in", http.StatusUnauthorized)
+			return
+		}
+
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error){
+			return []byte(os.Getenv("JWT_SECRET_KEY")), nil
+		})
+		if err != nil {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			return
+		}
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok{
+			http.Error(w, "Invalid token claim", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), userIDKey, claims["sub"])
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
 
 func createDBInstance() {

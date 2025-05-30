@@ -136,7 +136,7 @@ function App() {
   return (
     <div className='min-h-screen bg-background text-text overflow-hidden relative z-10'>
       <div
-        class="fixed inset-0 bgImg bg-cover bg-center opacity-70 -z-10"
+        className="fixed inset-0 bgImg bg-cover bg-center opacity-30 -z-10"
         aria-hidden="true"
       ></div>
       <div

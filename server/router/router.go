@@ -1,14 +1,17 @@
 package router
 
 import (
+	"github.com/Hyperion147/Todo-app/controllers"
 	"github.com/Hyperion147/Todo-app/middlewares"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func Router() *mux.Router {
+func Router(db *mongo.Database) *mux.Router {
 
 	router := mux.NewRouter()
+	authController := controllers.NewAuthController(db)
 	
 	cors := handlers.CORS(
 		handlers.AllowedOrigins([]string{"http://localhost:5173"}),
@@ -17,9 +20,15 @@ func Router() *mux.Router {
 		handlers.OptionStatusCode(204),
 		handlers.AllowCredentials(),
 	)
-	
+	router.Use(cors)
+
+	authRouter := router.PathPrefix("/api/auth").Subrouter()
+	authRouter.HandleFunc("/register", authController.SignUpUser).Methods("POST")
+	authRouter.HandleFunc("/login", authController.LogInUser).Methods("POST")
+	authRouter.HandleFunc("/logout", authController.LogoutUser).Methods("GET")
+
 	api := router.PathPrefix("/api").Subrouter()
-	api.Use(cors)
+	api.Use(middlewares.AuthMiddleware)
 	
 	api.HandleFunc("/task", middlewares.GetAllTasks).Methods("GET", "OPTIONS")
 	api.HandleFunc("/task", middlewares.CreateTask).Methods("POST", "OPTIONS")
