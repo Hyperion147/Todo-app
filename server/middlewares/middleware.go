@@ -2,244 +2,77 @@ package middlewares
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/Hyperion147/Todo-app/models"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-var collection *mongo.Collection
-var client *mongo.Client 
 
 type contextKey string
-const(
-	userIDKey contextKey = "userID"
+
+const (
+	userIDKey   contextKey = "userID"
+	userRoleKey contextKey = "userRole"
 )
 
-func init() {
-	loadEnv()
-	createDBInstance()
+func AdminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		role := r.Context().Value(userRoleKey).(string)
+		if role != "admin" {
+			http.Error(w, "Admin Access Required", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
-func loadEnv() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error loading .env file: ", err)
+func extractToken(r *http.Request) string {
+	bearerToken := r.Header.Get("Authorization")
+	if len(bearerToken) > 7 && strings.ToUpper(bearerToken[0:6]) == "BEARER" {
+		return bearerToken[7:]
 	}
+	if cookie, err := r.Cookie("token"); err == nil {
+		return cookie.Value
+	}
+	return ""
 }
 
-func AuthMiddleware(next http.Handler) http.Handler{
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request){
-		tokenString := r.Header.Get("Authorization")
+func validateToken(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return []byte(os.Getenv("JET_SECRET_KEY")), nil 
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims)
+	ok && token.Valid{
+		return claims, nil
+	}
+	return nil, jwt.ErrInvalidKey
+}
+
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString := extractToken(r)
 		if tokenString == "" {
-			cookie, err := r.Cookie("token")
-			if err != nil{
 				http.Error(w, "You are not logged in", http.StatusUnauthorized)
 				return
-			}
-			tokenString = cookie.Value
-		} else {
-			tokenString = strings.Split(tokenString, " ")[1]
 		}
 
-		if tokenString == "" {
-			http.Error(w, "You are not logged in", http.StatusUnauthorized)
-			return
-		}
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error){
-			return []byte(os.Getenv("JWT_SECRET_KEY")), nil
-		})
+		claims, err := validateToken(tokenString)
 		if err != nil {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
-		}
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok{
-			http.Error(w, "Invalid token claim", http.StatusUnauthorized)
+			http.Error(w, "Invalid token claim"+err.Error(), http.StatusUnauthorized)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), userIDKey, claims["sub"])
+		ctx = context.WithValue(ctx, userRoleKey, claims["role"])
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
-}
-
-func createDBInstance() {
-	connectionString := os.Getenv("DB_URI")
-	dbName := os.Getenv("DB_NAME")
-	collName := os.Getenv("DB_COLLECTION_NAME")
-
-	if connectionString == "" || dbName == "" || collName == "" {
-		log.Fatal("Missing required environment variables (DB_URI, DB_NAME, DB_COLLECTION_NAME)")
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	clientOptions := options.Client().ApplyURI(connectionString).SetTLSConfig(&tls.Config{
-		InsecureSkipVerify: false, 
-	})
-
-	var err error
-	client, err = mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatal("Failed to connect to MongoDB: ", err)
-	}
-
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatal("Failed to ping MongoDB: ", err)
-	}
-
-	fmt.Println("Connected to MongoDB")
-
-	collection = client.Database(dbName).Collection(collName)
-	fmt.Println("Collection instance created")
-}
-
-
-func CloseDBConnection() {
-	if client != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := client.Disconnect(ctx); err != nil {
-			log.Println("Failed to disconnect from MongoDB: ", err)
-		}
-	}
-}
-
-func GetAllTasks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-type", "application/json")
-	payload := getAllTasks()
-	json.NewEncoder(w).Encode(payload)
-	fmt.Println("Api hitting!")
-	w.WriteHeader(http.StatusOK)
-}
-
-func CreateTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	var task models.TodoList
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	insertOneTask(task)
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(task)
-}
-
-func TaskComplete(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	params := mux.Vars(r)
-	taskComplete(params["id"])
-	json.NewEncoder(w).Encode(map[string]string{"id": params["id"]})
-}
-
-func UndoTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	params := mux.Vars(r)
-	undoTask(params["id"])
-	json.NewEncoder(w).Encode(map[string]string{"id": params["id"]})
-}
-
-func DeleteTask(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	params := mux.Vars(r)
-	deleteOnetask(params["id"])
-}
-
-func DeleteAllTasks(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	count := deleteAllTasks()
-	json.NewEncoder(w).Encode(map[string]int64{"deleted_count": count})
-}
-
-func getAllTasks() ([]primitive.M){
-	cur, err := collection.Find(context.Background(), bson.D{})
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	var results []primitive.M
-	for cur.Next(context.Background()) {
-		var result primitive.M
-		e := cur.Decode(&result)
-		if e != nil {
-			log.Fatal(e)
-		}
-		results = append(results, result)
-	}
-	if err := cur.Err(); err != nil {
-		log.Fatal(err)
-	}
-	cur.Close(context.Background())
-	return results
-}
-
-func taskComplete(taskID string) {
-	id, _ := primitive.ObjectIDFromHex(taskID)
-	filter := bson.M{"_id": id}
-	update := bson.M{"$set": bson.M{"status": true}}
-	results, err := collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Modified count:", results.ModifiedCount)
-}
-
-func insertOneTask(task models.TodoList) {
-	insertResult, err := collection.InsertOne(context.Background(), task)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Inserted a Single Record", insertResult.InsertedID)
-}
-
-func undoTask(taskID string) {
-	id, _ := primitive.ObjectIDFromHex(taskID)
-	filter := bson.M{"_id": id}
-	update := bson.M{"$set": bson.M{"status": false}}
-	result, err := collection.UpdateOne(context.Background(), filter, update)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Modified Count:", result.ModifiedCount)
-}
-
-func deleteOnetask(taskID string) {
-	id, _ := primitive.ObjectIDFromHex(taskID)
-	filter := bson.M{"_id": id}
-	d, err := collection.DeleteOne(context.Background(), filter)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Deleted Count", d.DeletedCount)
-}
-
-func deleteAllTasks() int64 {
-	d, err := collection.DeleteMany(context.Background(), bson.D{{}})
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Deleted Count", d.DeletedCount)
-	return d.DeletedCount
 }

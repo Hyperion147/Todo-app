@@ -1,24 +1,15 @@
 import TodoForm from "./Components/TodoForm"
 import TodoList from "./Components/TodoList"
-import axios from 'axios'
-import { useState, useEffect, useCallback, useLayoutEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import toast, { Toaster } from 'react-hot-toast';
 import { gsap } from "gsap";
 import { useGSAP } from "@gsap/react";
 import Navbar from "./Components/sections/Navbar";
 import { cn } from "./Components/ui/utils";
+import api from "./api/api"; 
 import './App.css'
 
 gsap.registerPlugin(useGSAP);
-
-const api = axios.create({
-  baseURL: "http://localhost:7900/api",
-  withCredentials: true,
-  headers: {
-    'Content-Type': "application/json",
-    'Accept': "application/json"
-  }
-})
 
 function App() {
   const [todos, setTodos] = useState([])

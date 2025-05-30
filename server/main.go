@@ -1,20 +1,31 @@
+
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 
+	"github.com/Hyperion147/Todo-app/config"
+	"github.com/Hyperion147/Todo-app/database"
 	"github.com/Hyperion147/Todo-app/router"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func main() {
-	var client *mongo.Client 
-	db := client.Database(os.Getenv("DB_NAME"))
-	r := router.Router(db)
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	fmt.Println("Starting the server on port 7900")
-	log.Fatal(http.ListenAndServe(":7900", r))
+	db, err := database.NewMongoDB(cfg.DBURI, cfg.DBName)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	r := router.Router(db.DB, cfg)
+
+	log.Println("Starting server on :7900")
+	if err := http.ListenAndServe(":7900", r); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 }
